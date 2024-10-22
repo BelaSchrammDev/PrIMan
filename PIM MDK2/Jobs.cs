@@ -67,28 +67,5 @@ namespace IngameScript
                 return status.ToString() + " - " + cooldownMS.ToString();
             }
         }
-
-        public class Job1 : Job
-        {
-            int counter = 100000;
-            int initCounter = 0;
-            public Job1(string name, int InitCounter, int icooldown) : base(name, icooldown)
-            {
-                initCounter = InitCounter;
-            }
-            public override void InitJob()
-            {
-                counter = initCounter;
-            }
-            public override RunJobResult RunJob()
-            {
-                if (counter > 0) counter--;
-                return counter > 0 ? RunJobResult.Run : RunJobResult.Done;
-            }
-            public override string GetStatus()
-            {
-                return Jobname + "Counter: " + counter + "\n" + DebugStatus();
-            }
-        }
     }
 }

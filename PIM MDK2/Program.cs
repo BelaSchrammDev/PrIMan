@@ -15,8 +15,6 @@ namespace IngameScript
             CurrentFrequency = UpdateFrequency.Update10;
             Runtime.UpdateFrequency = CurrentFrequency;
             jobs = new Job[] {
-                new Job1("Job 1 ", 30, 0),
-                new Job1("Job 2 ", 20, 40),
                 new InventoryCount(),
             };
             for (int i = 0; i < jobs.Length; i++)
