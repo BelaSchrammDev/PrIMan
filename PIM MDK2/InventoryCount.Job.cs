@@ -12,15 +12,6 @@ namespace IngameScript
             public InventoryCount() : base("InventoryCount")
             {
             }
-            public override string GetStatus()
-            {
-                foreach (var key in _program.inventory.Keys)
-                {
-                    _program.Echo(key.ToString().Split('_')[1] + ": " + _program.inventory[key]);
-                }
-                return "InventoryCount";
-            }
-
             public override void InitJob()
             {
                 _program.GridTerminalSystem.GetBlocksOfType<IMyInventoryOwner>(myInventoryOwners);

@@ -15,7 +15,7 @@ namespace IngameScript
                 Jobname = name;
                 cooldownMS = TimeSpan.FromSeconds(icooldown);
             }
-            public void SetProgram(Program program)
+            public virtual void SetProgram(Program program)
             {
                 _program = program;
             }
@@ -28,7 +28,7 @@ namespace IngameScript
             public enum ScheduleResult
             {
                 InProgress,
-                NextJob,
+                Done,
             }
             public enum RunJobResult
             {
@@ -36,8 +36,14 @@ namespace IngameScript
                 Done,
             }
             private JobStatus status = JobStatus.Init;
-            public abstract void InitJob();
-            public abstract RunJobResult RunJob();
+            public virtual void InitJob()
+            {
+
+            }
+            public virtual RunJobResult RunJob()
+            {
+                return RunJobResult.Done;
+            }
             public ScheduleResult Schedule()
             {
                 switch (status)
@@ -50,21 +56,50 @@ namespace IngameScript
                         if (RunJob() == RunJobResult.Run) return ScheduleResult.InProgress;
                         status = JobStatus.WaitForCoolDown;
                         lastRunEnd = DateTime.Now;
-                        return ScheduleResult.NextJob;
+                        return ScheduleResult.Done;
                     case JobStatus.WaitForCoolDown:
                         if (DateTime.Now - lastRunEnd > cooldownMS)
                         {
                             status = JobStatus.Init;
                             return ScheduleResult.InProgress;
                         }
-                        return ScheduleResult.NextJob;
+                        return ScheduleResult.Done;
                 }
-                return ScheduleResult.NextJob;
+                return ScheduleResult.Done;
             }
-            public abstract string GetStatus();
-            public string DebugStatus()
+        }
+
+        public class MultiJob : Job
+        {
+            Job[] jobs;
+            int currentJobIndex;
+            public MultiJob(string name, Job[] ijobs) : base(name)
             {
-                return status.ToString() + " - " + cooldownMS.ToString();
+                jobs = ijobs;
+            }
+            public override void SetProgram(Program program)
+            {
+                base.SetProgram(program);
+                for (int i = 0; i < jobs.Length; i++)
+                {
+                    jobs[i].SetProgram(program);
+                }
+            }
+            public override void InitJob()
+            {
+                currentJobIndex = 0;
+            }
+            public override RunJobResult RunJob()
+            {
+                if (jobs[currentJobIndex].Schedule() == ScheduleResult.Done)
+                {
+                    currentJobIndex++;
+                    if (currentJobIndex >= jobs.Length)
+                    {
+                        return RunJobResult.Done;
+                    }
+                }
+                return RunJobResult.Run;
             }
         }
     }
