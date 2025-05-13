@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿// InventoryCount.cs
+using Sandbox.ModAPI.Ingame;
+using System.Collections.Generic;
+using System.Linq;
 using VRage.Game.ModAPI.Ingame;
 
 namespace IngameScript
@@ -7,43 +10,91 @@ namespace IngameScript
     {
         public class InventoryCount : Job
         {
-            List<IMyInventoryOwner> myInventoryOwners = new List<IMyInventoryOwner>();
-            int currentInventoryOwnerIndex;
-            public InventoryCount() : base("InventoryCount")
+            // List of all inventory owners on this grid
+            private readonly List<IMyInventoryOwner> _inventoryOwners = new List<IMyInventoryOwner>();
+
+            // Cursor indices for owner and slot
+            private int _ownerIndex;
+            private int _slotIndex;
+
+            // Reusable cache to avoid allocations each tick
+            private readonly List<MyInventoryItem> _itemsCache = new List<MyInventoryItem>();
+
+            /// <summary>
+            /// Constructs the InventoryCount job, injecting the Program and optional cooldown.
+            /// </summary>
+            public InventoryCount(Program program, int cooldownSeconds = 0)
+                : base(program, "InventoryCount", cooldownSeconds)
             {
-            }
-            public override void InitJob()
-            {
-                _program.GridTerminalSystem.GetBlocksOfType<IMyInventoryOwner>(myInventoryOwners);
-                currentInventoryOwnerIndex = 0;
-                var keys = new List<MyItemType>(_program.inventory.Keys);
-                for (var i = 0; i < keys.Count; i++) _program.inventory[keys[i]] = 0;
             }
 
+            /// <summary>
+            /// Initializes the job: finds all inventory owners and resets cursors and counts.
+            /// </summary>
+            public override void InitJob()
+            {
+                // Gather all inventory-owner blocks belonging to this grid
+                _inventoryOwners.Clear();
+                Program.GridTerminalSystem.GetBlocksOfType<IMyInventoryOwner>(
+                    _inventoryOwners,
+                    b => (b as IMyTerminalBlock).IsSameConstructAs(Program.Me)
+                );
+
+                // Reset cursors to start of list
+                _ownerIndex = 0;
+                _slotIndex = 0;
+
+                // Reset all tracked inventory counts
+                foreach (var key in Program.Inventory.Keys.ToList())
+                {
+                    Program.Inventory[key] = 0f;
+                }
+            }
+
+            /// <summary>
+            /// Processes one inventory slot per invocation, counting items.
+            /// Returns Continue if more work remains, Finished when complete.
+            /// </summary>
             public override RunJobResult RunJob()
             {
-                if (currentInventoryOwnerIndex >= myInventoryOwners.Count) return RunJobResult.Done;
-                IMyInventoryOwner inventoryOwner = myInventoryOwners[currentInventoryOwnerIndex];
-                for (int i = 0; i < inventoryOwner.InventoryCount; i++)
+                // If all owners have been processed, finish
+                if (_ownerIndex >= _inventoryOwners.Count)
+                    return RunJobResult.Finished;
+
+                var owner = _inventoryOwners[_ownerIndex];
+                var slotCount = owner.InventoryCount;
+
+                // Process exactly one slot of the current owner
+                if (_slotIndex < slotCount)
                 {
-                    IMyInventory inventory = inventoryOwner.GetInventory(i);
-                    List<MyInventoryItem> items = new List<MyInventoryItem>();
-                    inventory.GetItems(items);
-                    for (int j = 0; j < items.Count; j++)
+                    var inv = owner.GetInventory(_slotIndex);
+                    _itemsCache.Clear();
+                    inv.GetItems(_itemsCache);
+
+                    // Tally up each item in this slot
+                    foreach (var item in _itemsCache)
                     {
-                        MyInventoryItem item = items[j];
-                        if (_program.inventory.ContainsKey(item.Type))
-                        {
-                            _program.inventory[item.Type] += (float)item.Amount;
-                        }
+                        if (Program.Inventory.ContainsKey(item.Type))
+                            Program.Inventory[item.Type] += (float)item.Amount;
                         else
-                        {
-                            _program.inventory.Add(item.Type, (float)item.Amount);
-                        }
+                            Program.Inventory[item.Type] = (float)item.Amount;
                     }
                 }
-                currentInventoryOwnerIndex++;
-                return RunJobResult.Run;
+
+                // Advance the slot cursor
+                _slotIndex++;
+
+                // If we've processed all slots, move to next owner
+                if (_slotIndex >= slotCount)
+                {
+                    _slotIndex = 0;
+                    _ownerIndex++;
+                }
+
+                // Determine whether there is more work to do
+                return _ownerIndex >= _inventoryOwners.Count
+                    ? RunJobResult.Finished
+                    : RunJobResult.Continue;
             }
         }
     }
