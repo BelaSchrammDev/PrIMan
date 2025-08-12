@@ -59,7 +59,9 @@ namespace IngameScript
             {
                 // If all owners have been processed, finish
                 if (_ownerIndex >= _inventoryOwners.Count)
+                {
                     return RunJobResult.Finished;
+                }
 
                 var owner = _inventoryOwners[_ownerIndex];
                 var slotCount = owner.InventoryCount;
@@ -75,9 +77,13 @@ namespace IngameScript
                     foreach (var item in _itemsCache)
                     {
                         if (Program.Inventory.ContainsKey(item.Type))
+                        {
                             Program.Inventory[item.Type] += (float)item.Amount;
+                        }
                         else
+                        {
                             Program.Inventory[item.Type] = (float)item.Amount;
+                        }
                     }
                 }
 

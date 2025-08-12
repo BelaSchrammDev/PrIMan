@@ -22,6 +22,9 @@ namespace IngameScript
         // Frequency at which this script updates (e.g., every 10 ticks)
         private readonly UpdateFrequency _updateFrequency = UpdateFrequency.Update10;
 
+        // Expose inventory to jobs
+        public Dictionary<MyItemType, float> Inventory => _inventory;
+
         public Program()
         {
             // Set the update frequency for this script
@@ -86,8 +89,5 @@ namespace IngameScript
                 }
             }
         }
-
-        // Expose inventory to jobs
-        public Dictionary<MyItemType, float> Inventory => _inventory;
     }
 }
